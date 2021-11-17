@@ -20,12 +20,23 @@ namespace MaxsuBlockSpark
 			if (!defender || !attackWeapon || !defender->currentProcess || !attackWeapon->IsMelee() || attackWeapon->IsHandToHandMelee() || !defender->Get3D())
 				return EventResult::kContinue;
 
-			if (!a_event->cause || !a_event->cause->As<RE::Actor>() || !a_event->cause->As<RE::Actor>()->GetNodeByName("WEAPON")) {
-				logger::debug("Attacker Weapon Not Found!");
+			auto attacker = a_event->cause ? a_event->cause->As<RE::Actor>(): nullptr;
+			if (!attacker || !attacker->currentProcess || !attacker->currentProcess->high) {
+				logger::debug("Attack Actor Not Found!");
 				return EventResult::kContinue;
 			}
 
-			auto attackerNode = a_event->cause->As<RE::Actor>()->GetNodeByName("WEAPON");
+			auto attackData = attacker->currentProcess->high->attackData;
+			if (!attackData) {
+				logger::debug("Attack Data Not Found!");
+				return EventResult::kContinue;
+			}
+			 
+			auto attackerNode = attackData->IsLeftAttack() ? attacker->GetNodeByName("SHIELD") : attacker->GetNodeByName("WEAPON");
+			if (!attackerNode) {
+				logger::debug("Attacker Node Not Found!");
+				return EventResult::kContinue;
+			}
 
 			auto GetBipeObjIndex = [](RE::TESForm* parryEquipment) -> RE::BIPED_OBJECT {
 				if (!parryEquipment)
@@ -71,7 +82,7 @@ namespace MaxsuBlockSpark
 			RE::NiPoint3 sparkPos;
 			RE::NiPoint3 hitPos = attackerNode->worldBound.center + attackerNode->world.rotate * RE::NiPoint3(0.f,0.5f * attackerNode->worldBound.radius,0.f);
 
-			if ((BipeObjIndex == RE::BIPED_OBJECT::kShield && SparkLocalizer::GetShieldSparkPos(hitPos, defenderNode.get(), sparkPos)))
+			if (BipeObjIndex == RE::BIPED_OBJECT::kShield && defender->GetAttackState() == RE::ATTACK_STATE_ENUM::kNone && SparkLocalizer::GetShieldSparkPos(hitPos, defenderNode.get(), sparkPos))
 				logger::debug("Get Shield Spark Position!");
 			else {
 				sparkPos = defenderNode->worldBound.center;

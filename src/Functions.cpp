@@ -9,10 +9,15 @@ namespace MaxsuBlockSpark
 			return false;
 
 		auto const centerPos = shieldNode->worldBound.center;
-		auto const matrix = shieldNode->world.rotate;
-		auto const radius = shieldNode->worldBound.radius * 0.75f;
+		const auto matrix = shieldNode->world.rotate;
+		auto const radiusY = shieldNode->worldBound.radius * 0.8f;
 
-		result = centerPos + matrix * RE::NiPoint3(0.f, std::clamp(hitPos.z - centerPos.z, -radius, radius) , -10.0f);
+		RE::NiMatrix3 invMatrix;
+		InverseMatrix(invMatrix.entry, matrix.entry);
+
+		const auto localVector = invMatrix * (hitPos - centerPos);
+
+		result = centerPos + matrix * RE::NiPoint3(0.f, std::clamp(localVector.y, -radiusY, radiusY), std::clamp(localVector.z, -10.f, 0.f) -10.f);
 
 		return true;
 	}

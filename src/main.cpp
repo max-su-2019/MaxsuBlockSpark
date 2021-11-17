@@ -20,7 +20,7 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Query(const SKSE::QueryInterface* a
 #ifndef NDEBUG
 	log->set_level(spdlog::level::trace);
 #else
-	log->set_level(spdlog::level::debug);
+	log->set_level(spdlog::level::info);
 	log->flush_on(spdlog::level::trace);
 #endif
 
