@@ -6,7 +6,6 @@ namespace MaxsuBlockSpark
 	EventResult OnHitEventHandler::ProcessEvent(const RE::TESHitEvent* a_event, RE::BSTEventSource<RE::TESHitEvent>* a_eventSource)
 	{
 		using HitFlag = RE::TESHitEvent::Flag;
-		using AttackState = RE::ATTACK_STATE_ENUM;
 
 		if (!a_event || !a_eventSource) {
 			logger::error("Event Source Not Found!");
@@ -43,22 +42,22 @@ namespace MaxsuBlockSpark
 				if (!parryEquipment)
 					return RE::BIPED_OBJECT::kNone;
 
-				if (parryEquipment->As<RE::TESObjectWEAP>() && rightHand) {
+				if (parryEquipment->As<RE::TESObjectWEAP>() ) {
 					switch (parryEquipment->As<RE::TESObjectWEAP>()->GetWeaponType()) {
 					case RE::WEAPON_TYPE::kOneHandSword:
-						return RE::BIPED_OBJECT::kOneHandSword;
+						return rightHand ? RE::BIPED_OBJECT::kOneHandSword : RE::BIPED_OBJECT::kShield; 
 
 					case RE::WEAPON_TYPE::kOneHandAxe:
-						return RE::BIPED_OBJECT::kOneHandAxe;
+						return rightHand ? RE::BIPED_OBJECT::kOneHandAxe : RE::BIPED_OBJECT::kShield; 
 
 					case RE::WEAPON_TYPE::kOneHandMace:
-						return RE::BIPED_OBJECT::kOneHandMace;
+						return rightHand ? RE::BIPED_OBJECT::kOneHandMace : RE::BIPED_OBJECT::kShield; 
 
 					case RE::WEAPON_TYPE::kTwoHandAxe:
 					case RE::WEAPON_TYPE::kTwoHandSword:
 						return RE::BIPED_OBJECT::kTwoHandMelee;
 					}
-				} else
+				} else if (parryEquipment->IsArmor())
 					return RE::BIPED_OBJECT::kShield;
 
 				return RE::BIPED_OBJECT::kNone;
@@ -78,8 +77,10 @@ namespace MaxsuBlockSpark
 				return EventResult::kContinue;
 			}
 
+			logger::debug("Defender BipeObjIndex is {}", BipeObjIndex);
+
 			auto defenderNode = defender->GetCurrentBiped()->objects[BipeObjIndex].partClone;
-			if (!defenderNode || !defenderNode->AsNode()) {
+			if (!defenderNode) {
 				logger::debug("Defender Node Not Found!");
 				return EventResult::kContinue;
 			}
