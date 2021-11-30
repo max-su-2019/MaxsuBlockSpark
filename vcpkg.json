@@ -1,0 +1,13 @@
+{
+    "name":  "MaxsuBlockSpark",
+    "version-string":  "0.2.4",
+    "description":  "",
+    "license":  "MIT",
+    "dependencies":  [
+                         "spdlog"
+                     ],
+    "script-version":  null,
+    "build-config":  null,
+    "build-target":  null,
+    "install-name":  "Simple Block Spark"
+}

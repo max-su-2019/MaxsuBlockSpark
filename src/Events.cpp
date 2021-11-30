@@ -8,11 +8,11 @@ namespace MaxsuBlockSpark
 		using HitFlag = RE::TESHitEvent::Flag;
 
 		if (!a_event || !a_eventSource) {
-			logger::error("Event Source Not Found!");
+			ERROR("Event Source Not Found!");
 			return EventResult::kContinue;
 		}
 
-		logger::debug("OnHit Event Trigger!");
+		DEBUG("OnHit Event Trigger!");
 
 		if (a_event->flags.any(HitFlag::kHitBlocked) && a_event->target) {
 			auto defender = a_event->target->As<RE::Actor>();
@@ -22,19 +22,19 @@ namespace MaxsuBlockSpark
 
 			auto attacker = a_event->cause ? a_event->cause->As<RE::Actor>(): nullptr;
 			if (!attacker || !attacker->currentProcess || !attacker->currentProcess->high) {
-				logger::debug("Attack Actor Not Found!");
+				DEBUG("Attack Actor Not Found!");
 				return EventResult::kContinue;
 			}
 
 			auto attackerData = attacker->currentProcess->high->attackData;
 			if (!attackerData) {
-				logger::debug("Attacker Attack Data Not Found!");
+				DEBUG("Attacker Attack Data Not Found!");
 				return EventResult::kContinue;
 			}
 			 
 			auto attackerNode = attackerData->IsLeftAttack() ? attacker->GetNodeByName("SHIELD") : attacker->GetNodeByName("WEAPON");
 			if (!attackerNode) {
-				logger::debug("Attacker Node Not Found!");
+				DEBUG("Attacker Node Not Found!");
 				return EventResult::kContinue;
 			}
 
@@ -73,15 +73,15 @@ namespace MaxsuBlockSpark
 				BipeObjIndex = defenderLeftEquipped && (defenderLeftEquipped->IsWeapon() || defenderLeftEquipped->IsArmor()) ? GetBipeObjIndex(defenderLeftEquipped, false) : GetBipeObjIndex(defender->currentProcess->GetEquippedRightHand(), true);
 
 			if (BipeObjIndex == RE::BIPED_OBJECT::kNone) {
-				logger::debug("BipeObj Not Found!");
+				DEBUG("BipeObj Not Found!");
 				return EventResult::kContinue;
 			}
 
-			logger::debug("Defender BipeObjIndex is {}", BipeObjIndex);
+			DEBUG("Defender BipeObjIndex is {}", BipeObjIndex);
 
 			auto defenderNode = defender->GetCurrentBiped()->objects[BipeObjIndex].partClone;
 			if (!defenderNode) {
-				logger::debug("Defender Node Not Found!");
+				DEBUG("Defender Node Not Found!");
 				return EventResult::kContinue;
 			}
 
@@ -93,18 +93,18 @@ namespace MaxsuBlockSpark
 			RE::NiPoint3 hitPos = attackerNode->worldBound.center + attackerNode->world.rotate * RE::NiPoint3(0.f,0.5f * attackerNode->worldBound.radius,0.f);
 
 			if (BipeObjIndex == RE::BIPED_OBJECT::kShield && defenderLeftEquipped && defenderLeftEquipped->IsArmor() && SparkLocalizer::GetShieldSparkPos(hitPos, defenderNode.get(), sparkPos))
-				logger::debug("Get Shield Spark Position!");
+				DEBUG("Get Shield Spark Position!");
 			else {
 				sparkPos = defenderNode->worldBound.center;
-				logger::debug("Get Weapon Spark Position!");
+				DEBUG("Get Weapon Spark Position!");
 			}
 
 			if (cell->PlaceParticleEffect(0.0f, modelName, defenderNode->world.rotate, sparkPos, 1.0f, 4U, defenderNode.get())) {
-				logger::debug("Play Spark Effect Successfully!");
+				DEBUG("Play Spark Effect Successfully!");
 				return EventResult::kContinue;
 			}
 
-			logger::debug("Play Spark Effect Fail!");
+			DEBUG("Play Spark Effect Fail!");
 		}
 
 		return EventResult::kContinue;

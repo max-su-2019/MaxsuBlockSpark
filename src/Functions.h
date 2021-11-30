@@ -18,7 +18,7 @@ namespace MaxsuBlockSpark
 			typedef T type;
 			static size_t const value = N;
 		};
-
+		 
 		template <typename Array>
 		static bool InverseMatrix(Array& out, Array const& in_)
 		{
