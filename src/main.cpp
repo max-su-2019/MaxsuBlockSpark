@@ -1,4 +1,4 @@
-#include "Events.h"
+#include "LoadGame.h"
 
 #if ANNIVERSARY_EDITION
 
@@ -60,7 +60,13 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 
 	SKSE::Init(a_skse);
 
-	MaxsuBlockSpark::OnHitEventHandler::RegisterOnHitEvent();
+	auto g_message = SKSE::GetMessagingInterface();
+	if (!g_message) {
+		ERROR("Messaging Interface Not Found!");
+		return false;
+	}
+
+	g_message->RegisterListener(MaxsuBlockSpark::EventCallback);
 
 	return true;
 }

@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.19)
 # info
 project(
 	MaxsuBlockSpark
-	VERSION 0.2.4
+	VERSION 0.2.5
 	LANGUAGES CXX
 )
 
@@ -43,6 +43,7 @@ set(Boost_USE_STATIC_LIBS ON)
 add_subdirectory($ENV{CommonLibSSEPath} CommonLibSSE)
 add_subdirectory($ENV{DKUtilPath} DKUtil)
 find_package(spdlog CONFIG REQUIRED)
+find_package(effolkronium_random CONFIG REQUIRED)
 
 # source files
 execute_process(COMMAND powershell -ExecutionPolicy Bypass -File "${CMAKE_CURRENT_SOURCE_DIR}/!Update.ps1" "SOURCEGEN" "${PROJECT_VERSION}" "${CMAKE_CURRENT_BINARY_DIR}")
@@ -90,6 +91,7 @@ target_link_libraries(
 		CommonLibSSE::CommonLibSSE
 		DKUtil::DKUtil
 		spdlog::spdlog
+		effolkronium_random
 )
 
 # compiler

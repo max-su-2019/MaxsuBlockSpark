@@ -8,9 +8,9 @@ namespace MaxsuBlockSpark
 		if (!shieldNode)
 			return false;
 
-		auto const centerPos = shieldNode->worldBound.center;
+		const auto centerPos = shieldNode->worldBound.center;
 		const auto matrix = shieldNode->world.rotate;
-		auto const radiusY = shieldNode->worldBound.radius * 0.8f;
+		const auto radiusY = shieldNode->worldBound.radius * 0.8f;
 
 		RE::NiMatrix3 invMatrix;
 		InverseMatrix(invMatrix.entry, matrix.entry);
