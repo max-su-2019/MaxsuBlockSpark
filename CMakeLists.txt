@@ -1,25 +1,24 @@
 cmake_minimum_required(VERSION 3.19)
 
-# info
-project(
-	MaxsuBlockSpark
-	VERSION 0.2.5
-	LANGUAGES CXX
-)
-
-# called via add_subdirectory()
-if (NOT LINKAGE_OVERRIDE)
 set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+if(${MTD})
+set(VCPKG_TARGET_TRIPLET "x64-windows-static-md" CACHE STRING "")
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" CACHE STRING "")
+else()
 set(VCPKG_TARGET_TRIPLET "x64-windows-static" CACHE STRING "")
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE STRING "")
 endif()
 
+# info
+project(
+	MaxsuBlockSpark
+	VERSION 0.2.6
+	LANGUAGES CXX
+)
+
 # out-of-source builds only
-if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
-	message(
-		FATAL_ERROR
-			"In-source builds are not allowed."
-	)
+if(${PROJECT_SOURCE_DIR} STREQUAL ${PROJECT_BINARY_DIR})
+	message(FATAL_ERROR "In-source builds are not allowed.")
 endif()
 
 configure_file(
@@ -43,23 +42,18 @@ set(Boost_USE_STATIC_LIBS ON)
 add_subdirectory($ENV{CommonLibSSEPath} CommonLibSSE)
 add_subdirectory($ENV{DKUtilPath} DKUtil)
 find_package(spdlog CONFIG REQUIRED)
-find_package(effolkronium_random CONFIG REQUIRED)
 
 # source files
 execute_process(COMMAND powershell -ExecutionPolicy Bypass -File "${CMAKE_CURRENT_SOURCE_DIR}/!Update.ps1" "SOURCEGEN" "${PROJECT_VERSION}" "${CMAKE_CURRENT_BINARY_DIR}")
 include(${CMAKE_CURRENT_BINARY_DIR}/sourcelist.cmake)
 source_group(
-	TREE
-		${CMAKE_CURRENT_SOURCE_DIR}
-	FILES
-		${SOURCES}
+	TREE ${CMAKE_CURRENT_SOURCE_DIR}
+	FILES ${SOURCES}
 )
 
 source_group(
-	TREE
-		${CMAKE_CURRENT_BINARY_DIR}
-	FILES
-		${CMAKE_CURRENT_BINARY_DIR}/include/Version.h
+	TREE ${CMAKE_CURRENT_BINARY_DIR}
+	FILES ${CMAKE_CURRENT_BINARY_DIR}/include/Version.h
 )
 
 # runtime
@@ -91,11 +85,10 @@ target_link_libraries(
 		CommonLibSSE::CommonLibSSE
 		DKUtil::DKUtil
 		spdlog::spdlog
-		effolkronium_random
 )
 
 # compiler
-if (MSVC)
+if(MSVC)
 	add_compile_definitions(
 		_UNICODE
 	)
@@ -150,7 +143,7 @@ if (MSVC)
 			"$<$<CONFIG:DEBUG>:/INCREMENTAL;/OPT:NOREF;/OPT:NOICF>"
 			"$<$<CONFIG:RELEASE>:/INCREMENTAL:NO;/OPT:REF;/OPT:ICF;/DEBUG:FULL>"
 	)
-endif ()
+endif()
 
 # pch
 target_precompile_headers(
@@ -167,7 +160,7 @@ add_custom_command(
 		COMMAND 
 			powershell -NoProfile -ExecutionPolicy Bypass -File "${CMAKE_CURRENT_SOURCE_DIR}/!Update.ps1" "COPY" "${PROJECT_VERSION}" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$(ConfigurationName)" "${PROJECT_NAME}" "${ANNIVERSARY_EDITION}"
 		COMMENT 
-			"Updating DLL to MO2 directory..."
+			"Updating project :))"
 )
 
 # called via !Rebuild.ps1

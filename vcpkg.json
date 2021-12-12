@@ -1,14 +1,14 @@
 {
-    "name":  "MaxsuBlockSpark",
-    "version-string":  "0.2.5",
+    "name":  "maxsublockspark",
+    "version-string":  "0.2.6",
     "description":  "",
     "license":  "MIT",
     "dependencies":  [
-                         "spdlog",
-                         "effolkronium_random"
+                         "spdlog"
                      ],
-    "script-version":  "11205",
-    "build-config":  "md",
-    "build-target":  "se",
-    "install-name":  "Simple Block Spark"
+    "features":  {
+                     "mo2-install":  {
+                                         "description":  "Simple Block Spark"
+                                     }
+                 }
 }
