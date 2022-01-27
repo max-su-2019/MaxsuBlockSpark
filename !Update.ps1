@@ -1,14 +1,19 @@
 # args
 param (
-    [ValidateSet('COPY', 'SOURCEGEN', 'DISTRIBUTE')][string]$Mode,
+    [Parameter(Mandatory)][ValidateSet('COPY', 'SOURCEGEN', 'DISTRIBUTE')][string]$Mode,
     [string]$Version,
     [string]$Path,
     [string]$Project,
     [string]$Anniversary # VS passes in string
 )
+
+
 $ErrorActionPreference = "Stop"
 
+$Folder = $PSScriptRoot | Split-Path -Leaf
 $AcceptedExt = @('.c', '.cpp', '.cxx', '.h', '.hpp', '.hxx')
+
+
 function Resolve-Files {
     param (
         [Parameter(ValueFromPipeline)][string]$a_parent = $PSScriptRoot,
@@ -16,15 +21,29 @@ function Resolve-Files {
     )
     
     process {
-        Push-Location $PSScriptRoot # out of source invocation sucks
-        $_generated = [System.Collections.ArrayList]@()
+        Push-Location $PSScriptRoot
+        $capacity = 16
+        if ($Folder -eq 'CommonLibSSE') {
+            $capacity = 2048
+        } else {
+            $capacity = 16
+        }
+        $_generated = [System.Collections.ArrayList]::new($capacity)
 
         try {
             foreach ($directory in $a_directory) {
-                Write-Host "`t<$a_parent/$directory>"
-                Get-ChildItem "$a_parent/$directory" -Recurse -File -ErrorAction SilentlyContinue | Where-Object {($_.Extension -in $AcceptedExt) -and !($_.Name.EndsWith('Version.h'))} | Resolve-Path -Relative | ForEach-Object {
-                    Write-Host "`t`t<$_>"
+                Get-ChildItem "$a_parent/$directory" -Recurse -File -ErrorAction SilentlyContinue | Where-Object {
+                    ($_.Extension -in $AcceptedExt) -and 
+                    ($_.Name -ne 'Version.h')
+                } | Resolve-Path -Relative | ForEach-Object {
                     $_generated.Add("`n`t`"$($_.Substring(2) -replace '\\', '/')`"") | Out-Null
+                }
+
+                if (!$env:RebuildInvoke) {
+                    Write-Host "`t<$a_parent/$directory>"
+                    foreach ($file in $_generated) {
+                        Write-Host "$file"
+                    }
                 }
             }
         } finally {
@@ -35,12 +54,12 @@ function Resolve-Files {
     }
 }
 
-# project path
-$Folder = $PSScriptRoot | Split-Path -Leaf
 
-# operation
 Write-Host "`n`t<$Folder> [$Mode]"
-if ($Mode -eq 'COPY') { # post build event
+
+
+# @@COPY
+if ($Mode -eq 'COPY') {
     $GameBase = $null
     $MO2 = $null
     $Destination = $null
@@ -191,7 +210,7 @@ if ($Mode -eq 'COPY') { # post build event
                 [IO.File]::WriteAllText("$PSScriptRoot/CMakeLists.txt", $CMakeLists)
 
                 $vcpkg.'version-string' = $OutputVersion
-                $vcpkg = $vcpkg | ConvertTo-Json
+                $vcpkg = $vcpkg | ConvertTo-Json -Depth 9
                 [IO.File]::WriteAllText("$PSScriptRoot/vcpkg.json", $vcpkg)
                 
                 $Message.Text += "`n$Project has been changed from $($OriginalVersion) to $($OutputVersion)`n`nThis update will be in effect after next successful build!"
@@ -201,7 +220,11 @@ if ($Mode -eq 'COPY') { # post build event
 
     $MsgBox.ShowDialog() | Out-Null
     Exit
-} elseif ($Mode -eq 'SOURCEGEN') { # cmake sourcelist generation
+}
+
+
+# @@SOURCEGEN
+if ($Mode -eq 'SOURCEGEN') {
     Write-Host "`tGenerating CMake sourcelist..."
     Remove-Item "$Path/sourcelist.cmake" -Force -Confirm:$false -ErrorAction Ignore
 
@@ -215,42 +238,55 @@ if ($Mode -eq 'COPY') { # post build event
 
     # update vcpkg.json accordinly
     $vcpkg = [IO.File]::ReadAllText("$PSScriptRoot/vcpkg.json") | ConvertFrom-Json
+    $vcpkg.'name' = $vcpkg.'name'.ToLower()
     $vcpkg.'version-string' = $Version    
-    if ($env:RebuildInvoke) {
-        if (!($vcpkg | Get-Member features)) {
-            $features = @"
+    if (!($vcpkg | Get-Member features)) {
+        $features = @"
 {
-    "mo2-install": {
-        "description": ""
-    }
+"mo2-install": {
+    "description": ""
+}
 }
 "@ | ConvertFrom-Json
-            $features.'mo2-install'.'description' = $Folder
-            $vcpkg | Add-Member -Name 'features' -Value $features -MemberType NoteProperty
-        }
+        $features.'mo2-install'.'description' = $Folder
+        $vcpkg | Add-Member -Name 'features' -Value $features -MemberType NoteProperty
     }
+
+    # patch regression
+    $vcpkg.PsObject.Properties.Remove('script-version')
+    $vcpkg.PsObject.Properties.Remove('build-config')
+    $vcpkg.PsObject.Properties.Remove('build-target')
+    if ($vcpkg | Get-Member install-name) {
+        $vcpkg.'features'.'mo2-install'.'description' = $vcpkg.'install-name'
+    }
+    $vcpkg.PsObject.Properties.Remove('install-name')
 
     if (Test-Path "$Path/version.rc" -PathType Leaf) {
         $VersionResource = [IO.File]::ReadAllText("$Path/version.rc") -replace "`"FileDescription`",\s`"$Folder`"",  "`"FileDescription`", `"$($vcpkg.'description')`""
         [IO.File]::WriteAllText("$Path/version.rc", $VersionResource)
     }
 
-    $vcpkg = $vcpkg | ConvertTo-Json
+    $vcpkg = $vcpkg | ConvertTo-Json -Depth 9
     [IO.File]::WriteAllText("$PSScriptRoot/vcpkg.json", $vcpkg)
-} elseif ($Mode -eq 'DISTRIBUTE') { # update script to every project
-    ((Get-ChildItem 'Plugins' -Directory -Recurse) + (Get-ChildItem 'Library' -Directory -Recurse)) | Resolve-Path -Relative | ForEach-Object {
-        if (Test-Path "$_/CMakeLists.txt" -PathType Leaf) {
-            Write-Host "`tUpdated <$_>"
-            Robocopy.exe "$PSScriptRoot" "$_" '!Update.ps1' /MT /NJS /NFL /NDL /NJH
-        }
+}
+
+
+# @@DISTRIBUTE
+if ($Mode -eq 'DISTRIBUTE') { # update script to every project
+    Get-ChildItem "$PSScriptRoot/*/*" -Directory | Where-Object {
+        $_.Name -notin @('vcpkg', 'Build', '.git', 'PluginTutorialCN') -and
+        (Test-Path "$_/CMakeLists.txt" -PathType Leaf)
+    } | ForEach-Object {
+        Write-Host "`n`tUpdated <$_>"
+        Robocopy.exe "$PSScriptRoot" "$_" '!Update.ps1' /MT /NJS /NFL /NDL /NJH | Out-Null
     }
 }
 
 # SIG # Begin signature block
 # MIIR2wYJKoZIhvcNAQcCoIIRzDCCEcgCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUZfY+aonTALXSOpsvf5GTYR+j
-# Iq2ggg1BMIIDBjCCAe6gAwIBAgIQbBejp82dcLdHI5AVyyqyxzANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUV1lBXuZev89oF4HL0kq28gba
+# 5X6ggg1BMIIDBjCCAe6gAwIBAgIQbBejp82dcLdHI5AVyyqyxzANBgkqhkiG9w0B
 # AQsFADAbMRkwFwYDVQQDDBBES1NjcmlwdFNlbGZDZXJ0MB4XDTIxMTIwMzExMTgx
 # OVoXDTIyMTIwMzExMzgxOVowGzEZMBcGA1UEAwwQREtTY3JpcHRTZWxmQ2VydDCC
 # ASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKCLTioNBJsXmC6rmQ9af4DL
@@ -324,23 +360,23 @@ if ($Mode -eq 'COPY') { # post build event
 # AQEwLzAbMRkwFwYDVQQDDBBES1NjcmlwdFNlbGZDZXJ0AhBsF6OnzZ1wt0cjkBXL
 # KrLHMAkGBSsOAwIaBQCgeDAYBgorBgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqG
 # SIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3
-# AgEVMCMGCSqGSIb3DQEJBDEWBBQBtdZQ2ugZNUdVcI89pIyvDTOh+DANBgkqhkiG
-# 9w0BAQEFAASCAQB06GkVEvGs7ybZ1qz2XNylxP1JeK3MKuH+fBUQj882iBm4l0bZ
-# OQZR0vNCwtjlw5q1ant3Ax3GGVPjx+v+5RbiXVYYTiU2+zSEkaUeesdM93EWlvhU
-# jrkjjA4oPsGBiJJzYj7m68CUZCrNWn0DdnyG9/9ptBF8oxNE0R7BzfGhWgjJdSDp
-# n9dwx7iOxvpaZ3KSe0VJmPMDinyoLHABjJpDZnhqGuOMdbQDM++5DhTN+Y8tyFuq
-# QLAG9yY2JU4Iqig0w/Y01dUarK+62yFNOrsJcmr+qDLghktEPEjWo90ma2jNheU6
-# kOmV1n+V4OJDwfUGtAd3gCRlU7CvncvZCk6HoYICMDCCAiwGCSqGSIb3DQEJBjGC
+# AgEVMCMGCSqGSIb3DQEJBDEWBBQN079PNZZ4uW0jWBy6SMMj98ptSTANBgkqhkiG
+# 9w0BAQEFAASCAQACp5FGXXzrPhFq+gw0Ps3NihyrFgmo/rGR3lW00ox5L2bqoGg1
+# h8dFSOOtzy6ofhglYj7HWB0qSL/6HBgd+AJJl64deKyQ5u7GJkzRyWMDTZI2hGxV
+# pNXVby93b1szm240i6Wi6PwrB1DYES4iKaEz0H4lmrqzC++wsFJ71FsFIAOK40NP
+# nvIoxhqgO7ryBLkQ1XhVzhD78PvMX9Yqoq6yMmQgGPGFIFFZ8E3sL/RYDpK/goro
+# 2YtLTTJWoXziY8PvKS0qHiMyhrYK0vt3OswyqP7X5ZpViECH2GTZ/rHTJ+ngJoRR
+# DpStK70t/DMKdWTO8udoS2cZBuzXIOZxQjApoYICMDCCAiwGCSqGSIb3DQEJBjGC
 # Ah0wggIZAgEBMIGGMHIxCzAJBgNVBAYTAlVTMRUwEwYDVQQKEwxEaWdpQ2VydCBJ
 # bmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xMTAvBgNVBAMTKERpZ2lDZXJ0
 # IFNIQTIgQXNzdXJlZCBJRCBUaW1lc3RhbXBpbmcgQ0ECEA1CSuC+Ooj/YEAhzhQA
 # 8N0wDQYJYIZIAWUDBAIBBQCgaTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwG
-# CSqGSIb3DQEJBTEPFw0yMTEyMTAxNDU2NTNaMC8GCSqGSIb3DQEJBDEiBCAnMaK0
-# ny9d5DH6hX4TBHfviY2vvR4OKHRHgpqgNQ+YxTANBgkqhkiG9w0BAQEFAASCAQAh
-# i5LPIRGB36AvhAp+GGGG3lM84kBFL66nUHJAuoQBx3BJkb0le/inVfJMaavc+2PF
-# mqtktLZEOjcKXxCVrdyoB8sgH0SjqPpoqLN7GCLTCdB2QIGJfEng/yWng3louXkN
-# sSPfqb2aMDaaNeFqAzCnwE0MTg2/kb0wBerELq5uaAWtxj3pyX9fZML57e3kQ6fA
-# Ek8FWhy4YW6xoflzNOyL9VWt9L32GpltyTMVFKGYoyU0WETvQ9bCzOwLOQNV2iK/
-# XtdJf7oZHjnW1EqqzdOis2fE0HsByJHLY1ZmEeyP/bQzjBkodrboQYEB4fcvNR5B
-# IIb1ccHUhorY5waBaiu/
+# CSqGSIb3DQEJBTEPFw0yMTEyMjMxNTE0NTRaMC8GCSqGSIb3DQEJBDEiBCDY4gzM
+# O9bBse6wN9feGOiyGx6dTGrQvIh5MF/aLAJnyjANBgkqhkiG9w0BAQEFAASCAQA+
+# xh1sPmDldPtNk8ygqNY1GugtjyiI8LQE0AzJFLW78aVhbLFNtHFx6XOLgpX6iwdu
+# wNv7j6MuH1uxogkTA18VtVIzYp0dMQ2k4EhJZs9lM++GzYzeDKdrGwHJWqG+dHik
+# IGiqf3nSQ9ventXiVajl9AStPYmFvy+sgx/+X4sogHjES7lW680t+pI1h5X5mUpn
+# 0OlacACDUBlE9S6EViWtXFFXDLcB7b6Ee6s/78qmWxbg9U48/Ga+l3/yO+EI+xPm
+# 59GuXjYLyGlFdkS0bTwWsmTiwosUPtf+1yfUZ/hPkG+nJESLX3wihfiUXd+HJ5ZH
+# 2wSRbWhCtVyJgHHvhAuu
 # SIG # End signature block

@@ -12,7 +12,7 @@ endif()
 # info
 project(
 	MaxsuBlockSpark
-	VERSION 0.2.6
+	VERSION 0.3.0
 	LANGUAGES CXX
 )
 
@@ -63,6 +63,7 @@ add_library(
 	${SOURCES}
 	${CMAKE_CURRENT_BINARY_DIR}/include/Version.h
 	${CMAKE_CURRENT_BINARY_DIR}/version.rc
+	vcpkg.json
 )
 
 target_compile_features(

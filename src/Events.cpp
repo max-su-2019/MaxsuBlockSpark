@@ -69,8 +69,8 @@ namespace MaxsuBlockSpark
 			auto defenderLeftEquipped = defender->currentProcess->GetEquippedLeftHand();
 			auto defenderData = defender->currentProcess->high->attackData;
 			
-			if (defenderData && defenderLeftEquipped) 
-				BipeObjIndex = defenderData->IsLeftAttack() && (defenderLeftEquipped->IsWeapon() || defenderLeftEquipped->IsArmor()) ? GetBipeObjIndex(defenderLeftEquipped, false) : GetBipeObjIndex(defender->currentProcess->GetEquippedRightHand(), true);
+			if (defenderData)	//To compatible with "Simple Weapon Swing Parry" while attacking.
+				BipeObjIndex = defenderData->IsLeftAttack() && defenderLeftEquipped ? GetBipeObjIndex(defenderLeftEquipped, false) : GetBipeObjIndex(defender->currentProcess->GetEquippedRightHand(), true);
 			else 
 				BipeObjIndex = defenderLeftEquipped && (defenderLeftEquipped->IsWeapon() || defenderLeftEquipped->IsArmor()) ? GetBipeObjIndex(defenderLeftEquipped, false) : GetBipeObjIndex(defender->currentProcess->GetEquippedRightHand(), true);
 
@@ -82,7 +82,7 @@ namespace MaxsuBlockSpark
 			logger::debug("Defender BipeObjIndex is {}", BipeObjIndex);
 
 			auto defenderNode = defender->GetCurrentBiped()->objects[BipeObjIndex].partClone;
-			if (!defenderNode) {
+			if (!defenderNode || !defenderNode.get()) {
 				logger::debug("Defender Node Not Found!");
 				return EventResult::kContinue;
 			} 

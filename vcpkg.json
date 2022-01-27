@@ -1,6 +1,6 @@
 {
     "name":  "maxsublockspark",
-    "version-string":  "0.2.6",
+    "version-string":  "0.3.0",
     "description":  "",
     "license":  "MIT",
     "dependencies":  [
