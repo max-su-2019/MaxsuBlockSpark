@@ -55,6 +55,9 @@ namespace MaxsuBlockSpark
 					case RE::WEAPON_TYPE::kOneHandMace:
 						return rightHand ? RE::BIPED_OBJECT::kOneHandMace : RE::BIPED_OBJECT::kShield; 
 
+					case RE::WEAPON_TYPE::kOneHandDagger:
+						return rightHand ? RE::BIPED_OBJECT::kOneHandDagger : RE::BIPED_OBJECT::kShield; 
+
 					case RE::WEAPON_TYPE::kTwoHandAxe:
 					case RE::WEAPON_TYPE::kTwoHandSword:
 						return RE::BIPED_OBJECT::kTwoHandMelee;
